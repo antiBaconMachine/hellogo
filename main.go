@@ -14,10 +14,18 @@ type weatherProvider interface {
 	temperature(city string) (float64, error)
 }
 
+type multiWeatherProvider []weatherProvider
+
 type openWeatherMap struct{ApiKey string}
 type weatherUnderground struct{ApiKey string}
 
+var wp multiWeatherProvider
+
 func main() {
+	wp = multiWeatherProvider {
+		openWeatherMap{os.Getenv("OPENWEATHER_API_KEY")},
+		weatherUnderground{os.Getenv("WEATHER_UNDERGROUND_API_KEY")},
+	}
     http.HandleFunc("/hello/", hello)
     http.HandleFunc("/weather/", weather)
     http.ListenAndServe("localhost:8085", nil)
@@ -28,28 +36,33 @@ func hello(w http.ResponseWriter, r *http.Request) {
 }
 
 func weather(w http.ResponseWriter, r *http.Request) {
-	ow := openWeatherMap{os.Getenv("OPENWEATHER_API_KEY")}
-	wu := weatherUnderground{os.Getenv("WEATHER_UNDERGROUND_API_KEY")}
 	city := strings.SplitN(r.URL.Path, "/", 3)[2]
    
-    owData, err := ow.temperature(city)
+    average, err := wp.temperature(city)
     if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return 
     }
 
-	wuData, err := wu.temperature(city)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
     w.Header().Set("Content-Type", "application/json; charset=utf-8")
     json.NewEncoder(w).Encode(map[string]interface{}{
 		"city": city,
-		"ow": owData,
-		"wu": wuData,
+		"celcius": average,
 	})
+}
+
+func (providers multiWeatherProvider) temperature(city string) (float64, error) {
+	sum := 0.0
+	
+	for _, provider := range providers {
+		c, err := provider.temperature(city)
+		if err != nil {
+			return 0, err
+		}
+		sum += c
+	}
+
+	return sum / float64(len(providers)), nil
 }
 
 func (w openWeatherMap) temperature(city string) (float64, error) {
