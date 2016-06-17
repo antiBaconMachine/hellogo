@@ -52,14 +52,29 @@ func weather(w http.ResponseWriter, r *http.Request) {
 }
 
 func (providers multiWeatherProvider) temperature(city string) (float64, error) {
+	temps := make(chan float64, len(providers))
+	errs := make(chan error, len(providers))
+
+	for _, provider := range providers {
+		go func(provider weatherProvider) {
+			c, err := provider.temperature(city)
+			if err != nil {
+				errs <- err
+				return 
+			}
+			temps <- c
+		}(provider)
+	}
+
 	sum := 0.0
 	
-	for _, provider := range providers {
-		c, err := provider.temperature(city)
-		if err != nil {
+	for i := 0; i< len(providers); i++ {
+		select {
+		case temp := <-temps:
+			sum += temp
+		case err := <-errs:
 			return 0, err
 		}
-		sum += c
 	}
 
 	return sum / float64(len(providers)), nil
