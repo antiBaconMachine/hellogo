@@ -12,7 +12,12 @@ type weatherProvider interface {
 	temperature(city string) (float64, error)
 }
 
-type openWeatherMap struct{}
+type externalApi struct {
+	ApiKey string
+}
+type openWeatherMap struct{
+	externalApi
+}
 
 func main() {
     http.HandleFunc("/hello/", hello)
@@ -25,7 +30,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 }
 
 func weather(w http.ResponseWriter, r *http.Request) {
-	wp := openWeatherMap{}
+	wp := openWeatherMap{externalApi{os.Getenv("OPENWEATHER_API_KEY")}}
 	city := strings.SplitN(r.URL.Path, "/", 3)[2]
     
     data, err := wp.temperature(city)
@@ -42,7 +47,7 @@ func weather(w http.ResponseWriter, r *http.Request) {
 }
 
 func (w openWeatherMap) temperature(city string) (float64, error) {
-    resp, err := http.Get(fmt.Sprintf("http://api.openweathermap.org/data/2.5/weather?APPID=%s&q=%s", os.Getenv("OPENWEATHER_API_KEY"),  city))
+    resp, err := http.Get(fmt.Sprintf("http://api.openweathermap.org/data/2.5/weather?APPID=%s&q=%s", w.externalApi.ApiKey,  city))
     if err != nil {
 		return 0, err
     }
