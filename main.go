@@ -28,7 +28,7 @@ func main() {
 	}
     http.HandleFunc("/hello/", hello)
     http.HandleFunc("/weather/", weather)
-    http.ListenAndServe("localhost:8085", nil)
+    http.ListenAndServe(":8085", nil)
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
